@@ -15,14 +15,16 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => AppProvider()),
-        ],
-        child: MaterialApp.router(
-          title: 'Broiler Counter using Object Detection App',
-          debugShowCheckedModeBanner: false,
-          routerConfig: router,
-        ),
-      );
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AppProvider()),
+      ],
+      child: MaterialApp.router(
+        title: 'Broiler Counter using Object Detection App',
+        debugShowCheckedModeBanner: false,
+        routerConfig: router,
+      ),
+    );
+  }
 }

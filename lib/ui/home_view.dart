@@ -1,7 +1,7 @@
 import 'package:convex_bottom_bar/convex_bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:scanner/ui/detector_widget.dart';
+import 'package:scanner/ui/screens/detector_screen.dart';
 import 'package:scanner/ui/screens/home_screen.dart';
 import 'package:scanner/ui/screens/settings_screen.dart';
 import 'package:scanner/utilities/constants.dart';
@@ -105,7 +105,7 @@ class _HomeViewState extends State<HomeView>
       body: TabBarView(
         physics: const NeverScrollableScrollPhysics(),
         controller: _tabController,
-        children: const [HomeScreen(), DetectorWidget(), SettingsScreen()],
+        children: const [HomeScreen(), Detector(), SettingsScreen()],
       ),
     );
   }

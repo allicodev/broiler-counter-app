@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:scanner/ui/screens/home_screen.dart';
+import 'package:scanner/models/broiler_count.dart';
 
 class ATable extends StatelessWidget {
-  List<ChartData> dataSource;
+  List<BroilerCount> dataSource;
   List<String> columns;
   ATable({Key? key, required this.dataSource, required this.columns})
       : super(key: key);
@@ -19,7 +19,7 @@ class ATable extends StatelessWidget {
           (index) => DataRow(cells: [
             DataCell(Text(DateFormat('MM/dd/yy hh:mm a')
                 .format(dataSource[index].createdAt))),
-            DataCell(Text(dataSource[index].y.toInt().toString())),
+            DataCell(Text(dataSource[index].count.toInt().toString())),
           ]),
         ).toList(),
       ),
