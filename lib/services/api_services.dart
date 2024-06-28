@@ -10,6 +10,7 @@ class APIServices {
       required String endpoint,
       Map<String, dynamic>? query}) async {
     try {
+      print("$BASE_URL$endpoint");
       var url = Uri.parse(externalUrl ?? "$BASE_URL$endpoint")
           .replace(queryParameters: query);
       var response = await http.get(url, headers: <String, String>{

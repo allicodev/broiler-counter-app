@@ -67,7 +67,7 @@ class _SyncfusionBarChartState extends State<HomeScreen> {
                       alignment: Alignment.centerLeft,
                       child: Row(
                         children: [
-                          Text(DateFormat("HH:MM").format(DateTime.now()),
+                          Text(DateFormat("hh:mm").format(DateTime.now()),
                               style: const TextStyle(
                                   color: Colors.black87,
                                   fontWeight: FontWeight.w700)),
@@ -116,8 +116,10 @@ class _SyncfusionBarChartState extends State<HomeScreen> {
                     "Recent Count Table",
                     style: TextStyle(fontFamily: 'abel', fontSize: 22.0),
                   ),
-                  SizedBox(
+                  Container(
                     height: MediaQuery.of(context).size.height * 0.7,
+                    decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black12)),
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: SingleChildScrollView(

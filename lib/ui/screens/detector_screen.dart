@@ -213,29 +213,42 @@ class _HomeScreenState extends State<Detector> {
                                         color: Colors.black87))),
                             Center(
                               child: ElevatedButton(
-                                onPressed: () => sendToAdmin(),
+                                onPressed: () =>
+                                    boxes.isEmpty ? null : sendToAdmin(),
                                 child: Container(
                                   padding: const EdgeInsets.all(8.0),
                                   child: app.loading == "sending"
                                       ? const CircularProgressIndicator()
-                                      : Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Row(
+                                      : boxes.isEmpty
+                                          ? const Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 Text(
-                                                    "${PESO}120 x ${boxes.length} = $PESO${boxes.length * 120}",
-                                                    style: const TextStyle(
-                                                        fontSize: 24.0))
+                                                    "No broiler scanned in the image"),
+                                                Text("Please try again"),
+                                              ],
+                                            )
+                                          : Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                        "${PESO}120 x ${boxes.length} = $PESO${boxes.length * 120}",
+                                                        style: const TextStyle(
+                                                            fontSize: 24.0))
+                                                  ],
+                                                ),
+                                                const Text(
+                                                    "(Tap to confirm and send to Admin)")
                                               ],
                                             ),
-                                            const Text(
-                                                "(Tap to confirm and send to Admin)")
-                                          ],
-                                        ),
                                 ),
                               ),
                             ),
