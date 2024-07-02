@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:scanner/widgets/button.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -18,6 +19,12 @@ class _HomeScreenState extends State<SettingsScreen> {
         children: [
           Column(
             children: [
+              Button(
+                label: "SETTINGS",
+                onPress: () => context.pushNamed("settings"),
+                textColor: Colors.black87,
+              ),
+              const SizedBox(height: 5.0),
               Button(
                 label: "ABOUT US",
                 onPress: () {},

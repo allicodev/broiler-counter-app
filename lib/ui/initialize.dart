@@ -4,7 +4,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:scanner/ui/home_view.dart';
 import 'package:scanner/widgets/hero/failed_hero.dart';
 import 'package:scanner/widgets/icon_loaders.dart';
 import 'package:scanner/widgets/icon_text.dart';

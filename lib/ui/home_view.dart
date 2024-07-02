@@ -42,7 +42,7 @@ class _HomeViewState extends State<HomeView>
 
     Widget getBottomNavigationBar() {
       return ConvexAppBar(
-        color: ACCENT_SECONDARY,
+        color: Colors.black87,
         activeColor: ACCENT_PRIMARY,
         backgroundColor: Colors.white,
         height: 50,
