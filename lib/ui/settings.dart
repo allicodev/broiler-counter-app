@@ -21,7 +21,7 @@ class _SettingsState extends State<Settings> {
   Future<void> init() async {
     fetching = true;
     await getValue("price").then((e) {
-      setState(() => price = int.parse(e));
+      setState(() => price = e != "" ? int.parse(e) : 0);
       fetching = false;
     });
 
@@ -92,6 +92,7 @@ class _SettingsState extends State<Settings> {
                         label: "SAVE",
                         icon: Icons.save,
                         backgroundColor: ACCENT_PRIMARY,
+                        borderColor: Colors.transparent,
                         onPress: () {
                           setKeyValue("price", price.toString());
                           launchSnackbar(

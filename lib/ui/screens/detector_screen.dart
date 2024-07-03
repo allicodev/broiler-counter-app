@@ -48,7 +48,7 @@ class _HomeScreenState extends State<Detector> {
   Future<void> init() async {
     fetching = true;
     await getValue("price").then((e) {
-      setState(() => price = int.parse(e));
+      setState(() => price = e != "" ? int.parse(e) : 0);
       fetching = false;
     });
 
