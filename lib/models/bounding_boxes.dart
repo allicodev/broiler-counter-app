@@ -9,24 +9,37 @@ class BoundingBox {
   double left;
   double width;
   double height;
-  BoundingBox({
-    required this.className,
-    required this.top,
-    required this.left,
-    required this.width,
-    required this.height,
-  });
+  double confidence;
+  BoundingBox(
+      {required this.className,
+      required this.top,
+      required this.left,
+      required this.width,
+      required this.height,
+      required this.confidence});
 
-  Widget drawableContainer(double imgWidth, double imgHeight, bool? withLabel) {
+  Widget drawableContainer(double w, double h, bool? withLabel) {
     return Positioned(
-      top: top * imgHeight,
-      left: left * imgWidth,
-      child: Container(
-        width: width * imgWidth,
-        height: height * imgHeight,
-        decoration: BoxDecoration(
-            border: Border.all(color: Colors.blue, width: 2.0),
-            color: Colors.blue.withOpacity(0.5)),
+      top: top * h,
+      left: left * w,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+              color: Colors.teal,
+              padding: const EdgeInsets.symmetric(horizontal: 10.0),
+              child: Text(
+                "${(confidence * 100).toStringAsFixed(2)}%",
+                style: const TextStyle(color: Colors.white, fontSize: 10.0),
+              )),
+          Container(
+            width: width * w,
+            height: height * h,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.teal, width: 2.0),
+            ),
+          ),
+        ],
       ),
     );
   }

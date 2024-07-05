@@ -26,6 +26,7 @@ dependencies:
   pusher_channels_flutter: ^2.2.1
   flutter_pytorch: ^1.0.1
   shared_preferences: ^2.2.3
+  file_picker: ^8.0.6
 
 dev_dependencies:
   flutter_test:

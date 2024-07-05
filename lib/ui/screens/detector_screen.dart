@@ -1,14 +1,15 @@
 import 'package:camera/camera.dart';
+import 'package:image/image.dart' as img;
 import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_pytorch/pigeon.dart';
 import 'package:flutter_pytorch/flutter_pytorch.dart';
 import 'package:provider/provider.dart';
 import 'package:pusher_channels_flutter/pusher_channels_flutter.dart';
+import 'package:scanner/main.dart';
 import 'package:scanner/models/bounding_boxes.dart';
 import 'package:scanner/provider/app_provider.dart';
 import 'package:scanner/utilities/constants.dart';
@@ -25,23 +26,25 @@ class Detector extends StatefulWidget {
 class _HomeScreenState extends State<Detector> {
   late ModelObjectDetection _objectModel;
   final ImagePicker _picker = ImagePicker();
-  String? _imagePrediction;
-  bool objectDetection = false;
-  List<ResultObjectDetection?> objDetect = [];
   List<BoundingBox> boxes = [];
-
   PusherChannelsFlutter pusher = PusherChannelsFlutter.getInstance();
 
   bool generatingBoxes = false;
   bool sendingToAdmin = false;
   bool fetching = false;
   File? _image;
-  bool openCamera = false;
+
+  bool _isCameraInitialized = false;
+  CameraImage? imgCamera;
+  bool isWorking = false;
+  int frameSkipCount = 0;
+  final GlobalKey cameraPreviewKey = GlobalKey();
+  String inferenceTime = "Inference time: 0ms";
+  Timer? _debounce;
 
   int aganars = 0;
   int price = 0;
 
-  late List<CameraDescription> cameras;
   late CameraController _cameraController;
   get _controller => _cameraController;
 
@@ -63,11 +66,21 @@ class _HomeScreenState extends State<Detector> {
     init();
   }
 
+  @override
+  void dispose() {
+    if (_isCameraInitialized) {
+      _cameraController.stopImageStream();
+      _cameraController.dispose();
+    }
+    _debounce?.cancel();
+    super.dispose();
+  }
+
   Future loadModel() async {
     String pathObjectDetectionModel = "assets/yolov5s.torchscript";
     try {
       _objectModel = await FlutterPytorch.loadObjectDetectionModel(
-          pathObjectDetectionModel, 80, 640, 640,
+          pathObjectDetectionModel, 1, 640, 640,
           labelPath: "assets/labels.txt");
     } catch (e) {
       if (e is PlatformException) {
@@ -82,31 +95,89 @@ class _HomeScreenState extends State<Detector> {
     final XFile? image = await _picker.pickImage(source: source);
     if (image == null) return;
 
+    final __image = await File(image.path).readAsBytes();
+    final resizedImage =
+        img.copyResize(img.decodeImage(__image)!, width: 640, height: 640);
+
     setState(() {
       generatingBoxes = true;
     });
 
     List<BoundingBox> _boxes = [];
-    objDetect = await _objectModel.getImagePrediction(
-        await File(image.path).readAsBytes(),
-        minimumScore: 0.5,
-        IOUThershold: 0.3,
+    final objDetect = await _objectModel.getImagePredictionList(
+        img.encodeJpg(resizedImage),
+        minimumScore: 0.85,
+        IOUThershold: 0.85,
         boxesLimit: 99);
-
     for (var element in objDetect) {
-      if (element != null && element.className == "bird") {
+      if (element != null) {
         _boxes.add(BoundingBox(
-            className: element.className!,
+            className: element.className ?? "aga nars",
             top: element.rect.top,
             left: element.rect.left,
             width: element.rect.width,
-            height: element.rect.height));
+            height: element.rect.height,
+            confidence: element.score));
       }
     }
     setState(() {
       generatingBoxes = false;
       _image = File(image.path);
       boxes = _boxes;
+    });
+  }
+
+  Future<void> runLiveObjectDetection() async {
+    if (!_isCameraInitialized || imgCamera == null || !mounted)
+      return; // Check if the camera is initialized here
+    final stopwatch = Stopwatch()..start(); // Start the stopwatch
+
+    final previewSize = cameraPreviewKey.currentContext
+        ?.findRenderObject()
+        ?.semanticBounds
+        .size;
+
+    final objDetect = await _objectModel.getImagePredictionFromBytesList(
+        imgCamera!.planes.map((plane) => plane.bytes).toList(),
+        imgCamera!.width,
+        imgCamera!.height,
+        minimumScore: 0.70,
+        IOUThershold: 0.70,
+        boxesLimit: 99);
+
+    List<BoundingBox> _boxes = [];
+    for (var element in objDetect) {
+      if (element != null) {
+        _boxes.add(BoundingBox(
+            className: element.className ?? "aga nars",
+            top: element.rect.top,
+            left: element.rect.left,
+            width: element.rect.width,
+            height: element.rect.height,
+            confidence: element.score));
+      }
+    }
+
+    if (!mounted)
+      return; // Check if the widget is still in the tree before calling setState
+    updateBoxes(_boxes);
+    isWorking = false;
+    stopwatch.stop(); // Stop the stopwatch
+    if (!mounted) return; // Another check before calling setState
+    setState(() {
+      inferenceTime =
+          "Inference time: ${stopwatch.elapsedMilliseconds}ms"; // Update inference time
+    });
+  }
+
+  void updateBoxes(List<BoundingBox> newBoxes) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        setState(() {
+          boxes = newBoxes;
+        });
+      }
     });
   }
 
@@ -127,7 +198,11 @@ class _HomeScreenState extends State<Detector> {
       eventName: "new-broiler",
     ));
     Provider.of<AppProvider>(context, listen: false).sendBroiler(
-        payload: boxes.length,
+        payload: {
+          "broiler": boxes.length,
+          "total": price * boxes.length,
+          "price": price
+        },
         callback: (code, message) {
           launchSnackbar(
               context: context,
@@ -143,47 +218,6 @@ class _HomeScreenState extends State<Detector> {
         });
   }
 
-  void onLatestImageAvailable(CameraImage cameraImage) async {
-    aganars++;
-
-    if (aganars % 2 == 0 && openCamera) {
-      List<BoundingBox> _boxes = [];
-
-      objDetect = await _objectModel.getImagePredictionFromBytesList(
-          cameraImage.planes.map((e) => e.bytes).toList(),
-          cameraImage.width,
-          cameraImage.height,
-          minimumScore: 0.5,
-          IOUThershold: 0.3,
-          boxesLimit: 99);
-
-      for (var element in objDetect) {
-        if (element != null && element.className == "bird") {
-          _boxes.add(BoundingBox(
-              className: element.className!,
-              top: element.rect.top,
-              left: element.rect.left,
-              width: element.rect.width,
-              height: element.rect.height));
-        }
-      }
-      setState(() {
-        generatingBoxes = false;
-        boxes = _boxes;
-      });
-    }
-
-    setState(() {});
-    // _detector?.processFrame(cameraImage);
-  }
-
-  @override
-  void dispose() {
-    _cameraController.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     AppProvider app = context.watch<AppProvider>();
@@ -192,7 +226,6 @@ class _HomeScreenState extends State<Detector> {
 
     Widget generateImageWithBoundingBoxes() {
       return SizedBox(
-        width: width,
         height: height * 0.65,
         child: Stack(
           children: List.generate(
@@ -209,36 +242,69 @@ class _HomeScreenState extends State<Detector> {
             ? const Center(
                 child: CircularProgressIndicator(),
               )
-            : openCamera
+            : _isCameraInitialized
                 ? Column(
                     children: [
-                      Stack(
-                        children: [
-                          CameraPreview(_controller),
-                          Positioned(
-                            top: 10,
-                            right: 10,
-                            child: Container(
-                              height: 40,
-                              width: 40,
-                              decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(100)),
-                              child: IconButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      openCamera = false;
-                                      _image = null;
-                                    });
-
-                                    _cameraController.dispose();
-                                  },
-                                  icon: const Icon(Icons.close)),
+                      SizedBox(
+                        height: height * 0.65,
+                        child: Stack(
+                          children: [
+                            ClipRect(
+                              child: OverflowBox(
+                                alignment: Alignment.center,
+                                child: FittedBox(
+                                  fit: BoxFit.fitWidth,
+                                  child: SizedBox(
+                                    width: width,
+                                    height: height * .65,
+                                    child: AspectRatio(
+                                      aspectRatio:
+                                          _controller.value.aspectRatio,
+                                      child: CameraPreview(
+                                        _controller,
+                                        key: cameraPreviewKey,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                          generateImageWithBoundingBoxes(),
-                          Text(boxes.length.toString()),
-                        ],
+                            Positioned(
+                              top: 10,
+                              right: 10,
+                              child: Container(
+                                height: 40,
+                                width: 40,
+                                decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(100)),
+                                child: IconButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _isCameraInitialized = false;
+                                        _image = null;
+                                      });
+                                      _cameraController.stopImageStream();
+                                      _cameraController.dispose();
+                                    },
+                                    icon: const Icon(Icons.close)),
+                              ),
+                            ),
+                            Positioned(
+                                bottom: 0,
+                                left: 0,
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 5),
+                                  color: Colors.black87,
+                                  child: Text(
+                                    inferenceTime,
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                )),
+                            generateImageWithBoundingBoxes(),
+                          ],
+                        ),
                       ),
                       Expanded(
                         child: Stack(
@@ -320,7 +386,7 @@ class _HomeScreenState extends State<Detector> {
                                     child: Image.file(
                                       _image!,
                                       width: width,
-                                      fit: BoxFit.cover,
+                                      fit: BoxFit.fill,
                                     ),
                                   ),
                                   generateImageWithBoundingBoxes(),
@@ -339,24 +405,46 @@ class _HomeScreenState extends State<Detector> {
                                                 icon: const Icon(
                                                     Icons.camera_alt),
                                                 onPressed: () async {
-                                                  cameras =
-                                                      await availableCameras();
+                                                  if (mounted) {
+                                                    setState(() {
+                                                      boxes = [];
+                                                      _image = null;
+                                                    });
+                                                  }
 
                                                   _cameraController =
                                                       CameraController(
-                                                    cameras[0],
-                                                    ResolutionPreset.medium,
-                                                    enableAudio: false,
-                                                  )..initialize()
-                                                            .then((_) async {
-                                                          await _controller
-                                                              .startImageStream(
-                                                                  onLatestImageAvailable);
-                                                          setState(() {});
-                                                        });
+                                                          cameras![0],
+                                                          ResolutionPreset
+                                                              .high);
 
-                                                  setState(
-                                                      () => openCamera = true);
+                                                  _cameraController
+                                                      .initialize()
+                                                      .then((_) {
+                                                    if (!mounted) {
+                                                      return;
+                                                    }
+                                                    setState(() {
+                                                      _isCameraInitialized =
+                                                          true;
+                                                      _cameraController
+                                                          .startImageStream(
+                                                              (imageFromStream) {
+                                                        if (!isWorking &&
+                                                            frameSkipCount++ %
+                                                                    2 ==
+                                                                0) {
+                                                          isWorking = true;
+                                                          imgCamera =
+                                                              imageFromStream;
+                                                          runLiveObjectDetection();
+                                                        }
+                                                      });
+                                                    });
+                                                  }).catchError((error) {
+                                                    print(
+                                                        "Error initializing camera: $error");
+                                                  });
                                                 }),
                                           ),
                                           const SizedBox(height: 10.0),
@@ -442,29 +530,35 @@ class _HomeScreenState extends State<Detector> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Center(
-                                  child: Visibility(
-                                    visible: _imagePrediction != null,
-                                    child: Text("$_imagePrediction"),
-                                  ),
-                                ),
                                 Column(
                                   children: [
                                     ElevatedButton(
                                       onPressed: () async {
-                                        cameras = await availableCameras();
-
                                         _cameraController = CameraController(
-                                          cameras[0],
-                                          ResolutionPreset.medium,
-                                          enableAudio: false,
-                                        )..initialize().then((_) async {
-                                            await _controller.startImageStream(
-                                                onLatestImageAvailable);
-                                            setState(() {});
-                                          });
+                                            cameras![0], ResolutionPreset.high);
 
-                                        setState(() => openCamera = true);
+                                        _cameraController
+                                            .initialize()
+                                            .then((_) {
+                                          if (!mounted) {
+                                            return;
+                                          }
+                                          setState(() {
+                                            _isCameraInitialized = true;
+                                            _cameraController.startImageStream(
+                                                (imageFromStream) {
+                                              if (!isWorking &&
+                                                  frameSkipCount++ % 2 == 0) {
+                                                isWorking = true;
+                                                imgCamera = imageFromStream;
+                                                runLiveObjectDetection();
+                                              }
+                                            });
+                                          });
+                                        }).catchError((error) {
+                                          print(
+                                              "Error initializing camera: $error");
+                                        });
                                       },
                                       child: const Row(
                                         mainAxisSize: MainAxisSize.min,
