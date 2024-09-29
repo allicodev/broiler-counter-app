@@ -4,6 +4,9 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:scanner/provider/app_provider.dart';
+import 'package:scanner/utilities/shared_pref.dart';
 import 'package:scanner/widgets/hero/failed_hero.dart';
 import 'package:scanner/widgets/icon_loaders.dart';
 import 'package:scanner/widgets/icon_text.dart';
@@ -22,6 +25,7 @@ class _InitializeState extends State<InitializeScreen> {
   @override
   void initState() {
     super.initState();
+    getCheckenPrice();
     checkConnectivity();
 
     subscription =
@@ -34,14 +38,32 @@ class _InitializeState extends State<InitializeScreen> {
     super.dispose();
   }
 
+  Future<void> getCheckenPrice() async {
+    Provider.of<AppProvider>(context, listen: false).getChickenPrice();
+  }
+
   Future<void> checkConnectivity() async {
     setState(() => initialState = "loading");
     await Future.delayed(const Duration(milliseconds: 500));
+
     var connectivityResult = await Connectivity().checkConnectivity();
     if ([ConnectivityResult.mobile, ConnectivityResult.wifi]
         .contains(connectivityResult)) {
       setState(() => initialState = 'online');
-      context.goNamed("home");
+
+      String isLoggedIn = await getValue('isLoggedIn');
+      if (mounted) {
+        if (isLoggedIn == 'true') {
+          await getValue('userId').then((id) {
+            if (mounted) {
+              Provider.of<AppProvider>(context, listen: false).getUser(id: id);
+              context.goNamed("home");
+            }
+          });
+        } else {
+          context.goNamed('login');
+        }
+      }
     } else {
       setState(() => initialState = "offline");
     }

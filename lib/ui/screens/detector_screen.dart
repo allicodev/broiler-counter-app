@@ -13,7 +13,6 @@ import 'package:scanner/main.dart';
 import 'package:scanner/models/bounding_boxes.dart';
 import 'package:scanner/provider/app_provider.dart';
 import 'package:scanner/utilities/constants.dart';
-import 'package:scanner/utilities/shared_pref.dart';
 import 'package:scanner/widgets/snackbar.dart';
 
 class Detector extends StatefulWidget {
@@ -43,27 +42,15 @@ class _HomeScreenState extends State<Detector> {
   Timer? _debounce;
 
   int aganars = 0;
-  int price = 0;
 
   late CameraController _cameraController;
   get _controller => _cameraController;
-
-  Future<void> init() async {
-    fetching = true;
-    await getValue("price").then((e) {
-      setState(() => price = e != "" ? int.parse(e) : 0);
-      fetching = false;
-    });
-
-    setState(() {});
-  }
 
   @override
   void initState() {
     super.initState();
     loadModel();
     initPusher();
-    init();
   }
 
   @override
@@ -193,10 +180,13 @@ class _HomeScreenState extends State<Detector> {
   }
 
   sendToAdmin() {
+    double price = Provider.of<AppProvider>(context, listen: false).price;
+
     pusher.trigger(PusherEvent(
       channelName: "jarold-gwapo",
       eventName: "new-broiler",
     ));
+
     Provider.of<AppProvider>(context, listen: false).sendBroiler(
         payload: {
           "broiler": boxes.length,
@@ -221,6 +211,8 @@ class _HomeScreenState extends State<Detector> {
   @override
   Widget build(BuildContext context) {
     AppProvider app = context.watch<AppProvider>();
+
+    double price = app.price;
     double width = MediaQuery.of(context).size.width;
     double height = MediaQuery.of(context).size.height;
 
