@@ -18,6 +18,7 @@ class _HomeViewState extends State<HomeView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedIndex = 0;
+  String selectedGraphFilter = "daily";
 
   @override
   void initState() {
@@ -90,13 +91,15 @@ class _HomeViewState extends State<HomeView>
         actions: _selectedIndex == 0
             ? [
                 Container(
-                  margin: const EdgeInsets.only(right: 5.0),
-                  child: Select(options: [
-                    SelectValue(label: "Yearly", value: "yearly"),
-                    SelectValue(label: "Monthly", value: "monthly"),
-                    SelectValue(label: "Daily", value: "daily")
-                  ], defaultValue: "daily", onChange: (value) => {}),
-                )
+                    margin: const EdgeInsets.only(right: 5.0),
+                    child: Select(
+                        options: [
+                          SelectValue(label: "Monthly", value: "monthly"),
+                          SelectValue(label: "Daily", value: "daily")
+                        ],
+                        defaultValue: "daily",
+                        onChange: (value) =>
+                            setState(() => selectedGraphFilter = value)))
               ]
             : null,
       ),
@@ -105,7 +108,11 @@ class _HomeViewState extends State<HomeView>
       body: TabBarView(
         physics: const NeverScrollableScrollPhysics(),
         controller: _tabController,
-        children: const [HomeScreen(), Detector(), SettingsScreen()],
+        children: [
+          HomeScreen(graphFilter: selectedGraphFilter),
+          const Detector(),
+          const SettingsScreen()
+        ],
       ),
     );
   }

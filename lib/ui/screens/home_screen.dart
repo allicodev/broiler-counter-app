@@ -10,7 +10,8 @@ import 'package:scanner/widgets/table.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  String graphFilter;
+  HomeScreen({Key? key, required this.graphFilter}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _SyncfusionBarChartState();
@@ -20,21 +21,55 @@ class _SyncfusionBarChartState extends State<HomeScreen> {
   late TooltipBehavior _tooltip;
   final Random random = Random();
 
-  final DateTime _ =
+  DateTime _ =
       DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  String graphFilter = "";
+  DateFormat dateFormat = DateFormat("ha");
 
   @override
   void initState() {
     _tooltip = TooltipBehavior(enable: true);
 
     // get broiler datas from api
-    Provider.of<AppProvider>(context, listen: false).getBroiler(
-        callback: (code, message) {
-      if (code != 200) {
-        launchSnackbar(context: context, mode: "ERROR", message: message);
-      }
-    });
+    fetchBroilers();
+    setState(() => graphFilter = widget.graphFilter);
     super.initState();
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.graphFilter != widget.graphFilter) {
+      setState(() => graphFilter = widget.graphFilter);
+
+      switch (widget.graphFilter.toLowerCase()) {
+        case "monthly":
+          {
+            dateFormat = DateFormat("MMM");
+            _ = DateTime(DateTime.now().year, 1, 1);
+            break;
+          }
+
+        case "daily":
+          {
+            dateFormat = DateFormat("ha");
+            break;
+          }
+      }
+
+      setState(() {});
+    }
+  }
+
+  fetchBroilers() {
+    Provider.of<AppProvider>(context, listen: false).getBroiler(
+        query: {"type": graphFilter},
+        callback: (code, message) {
+          if (code != 200) {
+            launchSnackbar(context: context, mode: "ERROR", message: message);
+          }
+        });
   }
 
   @override
@@ -80,35 +115,43 @@ class _SyncfusionBarChartState extends State<HomeScreen> {
                   SfCartesianChart(
                       tooltipBehavior: _tooltip,
                       title: const ChartTitle(
-                          text: "Broiler Counter Graph",
+                          text: "Broiler Chart",
                           textStyle:
                               TextStyle(fontFamily: 'abel', fontSize: 18.0)),
                       primaryXAxis: DateTimeAxis(
                         minimum: _,
-                        intervalType: DateTimeIntervalType.hours,
                         interval: 4,
-                        maximum: _.add(const Duration(
-                            hours: 23, microseconds: 59, seconds: 59)),
-                        // sets the date format to 12 hour
-                        dateFormat: DateFormat("h a"),
+                        maximum: _.add(graphFilter.toLowerCase() == "daily"
+                            ? const Duration(
+                                hours: 23, microseconds: 59, seconds: 59)
+                            : DateTime(DateTime.now().year, 12, 31)
+                                .difference(_)),
+                        dateFormat: dateFormat,
                       ),
                       primaryYAxis: const NumericAxis(
-                        title: AxisTitle(text: 'Broiler Count'),
+                        // title: AxisTitle(text: 'Broiler Count'),
                         interval: 5,
                         minimum: 0,
                         maximum: 100,
                       ),
                       series: <CartesianSeries<BroilerCount, DateTime>>[
                         ColumnSeries<BroilerCount, DateTime>(
-                            dataSource: app.broilers,
+                            dataSource: graphFilter.toLowerCase() == "monthly"
+                                ? mergeBroilerCounts(app.broilers)
+                                : app.broilers,
                             color: Colors.teal,
+                            name: "Broilers",
                             borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(5)),
                             xValueMapper: (BroilerCount data, _) => DateTime(
                                 data.createdAt.year,
                                 data.createdAt.month,
-                                data.createdAt.day,
-                                data.createdAt.hour),
+                                graphFilter.toLowerCase() == "monthly"
+                                    ? 0
+                                    : data.createdAt.day,
+                                graphFilter.toLowerCase() == "monthly"
+                                    ? 0
+                                    : data.createdAt.hour),
                             yValueMapper: (BroilerCount data, _) => data.count),
                       ]),
                   const SizedBox(height: 35),
@@ -127,9 +170,13 @@ class _SyncfusionBarChartState extends State<HomeScreen> {
                         child: Column(
                           children: [
                             ATable(
-                              dataSource: app.broilers,
-                              columns: const ["Date", "Count"],
-                            ),
+                                dataSource:
+                                    graphFilter.toLowerCase() == "monthly"
+                                        ? mergeBroilerCounts(app.broilers)
+                                        : app.broilers,
+                                columns: const ["Date", "Count"],
+                                showMonthlyOnly:
+                                    graphFilter.toLowerCase() == "monthly"),
                           ],
                         ),
                       ),
@@ -140,4 +187,33 @@ class _SyncfusionBarChartState extends State<HomeScreen> {
             ),
     );
   }
+}
+
+List<BroilerCount> mergeBroilerCounts(List<BroilerCount> broilers) {
+  Map<String, int> mergedCounts = {};
+
+  for (var broiler in broilers) {
+    String key = '${broiler.createdAt.year}-${broiler.createdAt.month}';
+
+    if (mergedCounts.containsKey(key)) {
+      mergedCounts[key] = mergedCounts[key]! + broiler.count;
+    } else {
+      mergedCounts[key] = broiler.count;
+    }
+  }
+
+  List<BroilerCount> mergedList = [];
+
+  mergedCounts.forEach((key, value) {
+    var parts = key.split('-');
+    int year = int.parse(parts[0]);
+    int month = int.parse(parts[1]);
+
+    mergedList.add(BroilerCount(
+      createdAt: DateTime(year, month),
+      count: value,
+    ));
+  });
+
+  return mergedList;
 }

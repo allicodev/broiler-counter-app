@@ -32,9 +32,10 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  getBroiler({required Function callback}) async {
+  getBroiler({Map<String, dynamic>? query, required Function callback}) async {
     setLoading("fetching");
-    final response = await APIServices.get(endpoint: "/api/broiler");
+    final response =
+        await APIServices.get(endpoint: "/api/broiler", query: query);
     if (response is Success) {
       _broiler = List<BroilerCount>.from(
           response.response["data"].map((x) => BroilerCount.fromJson(x)));
